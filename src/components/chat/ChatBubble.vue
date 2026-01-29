@@ -473,6 +473,11 @@ onUpdated(() => {
   width: fit-content;
   max-width: calc(100% - 20px); /* 오른쪽 여유 공간 확보 */
   overflow: visible;
+  margin-top: 5px;
+}
+
+.chat-bubble-wrapper:first-child{
+  margin-top:80px;
 }
 
 .chat-bubble-wrapper.right {
@@ -1415,6 +1420,7 @@ onUpdated(() => {
 
   .chat-bubble-wrapper {
     max-width: calc(100% - 12px);
+    margin-top: 20px;
   }
 
   .chat-bubble-wrapper.right {
