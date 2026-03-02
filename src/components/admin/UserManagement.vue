@@ -114,7 +114,7 @@ import { ref, computed, onMounted } from 'vue'
 import UserTable from './UserTable.vue'
 import UserDetailModal from './UserDetailModal.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
-import { adminAPI, type UserListItem, type UserDetail } from '../../services/api'
+import { adminAPI, type UserListItem, type UserDetail, type AdminRole } from '../../services/api'
 
 const users = ref<UserListItem[]>([])
 const loading = ref(false)
@@ -224,7 +224,7 @@ const closeDetailModal = () => {
   selectedUser.value = null
 }
 
-const updateUserPermissions = async (data: { is_pro?: boolean; is_admin?: boolean }) => {
+const updateUserPermissions = async (data: { is_pro?: boolean; admin_role?: AdminRole }) => {
   if (!selectedUser.value) return
 
   modalLoading.value = true
@@ -239,6 +239,7 @@ const updateUserPermissions = async (data: { is_pro?: boolean; is_admin?: boolea
         ...users.value[index],
         is_pro: updated.is_pro,
         is_admin: updated.is_admin,
+        admin_role: updated.admin_role,
       }
     }
   } catch (error) {

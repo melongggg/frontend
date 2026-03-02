@@ -57,7 +57,7 @@ export interface ChatSession {
   sessionId?: string; // 백엔드 세션 ID
 }
 
-export type ChatMode = 'unified' | 'cot' | 'rag';
+export type ChatMode = 'rag';
 
 export function useChat() {
   const router = useRouter();
@@ -66,10 +66,11 @@ export function useChat() {
   const currentChatId = ref<string | null>(null);
   const isLoading = ref(false);
   const isStreaming = ref(false);
-  // localStorage에서 chatMode 초기화 (기본값: 'unified')
-  const savedChatMode = localStorage.getItem('chatMode') as ChatMode | null;
-  const chatMode = ref<ChatMode>(savedChatMode && ['unified', 'cot', 'rag'].includes(savedChatMode) ? savedChatMode : 'unified');
+  // 기본 모드: 'rag' (대학 정보 검색)
+  const chatMode = ref<ChatMode>('rag');
   let currentController: AbortController | null = null;
+  // 중복 전송 방지 플래그
+  let isSendingLock = false;
   
   // RAG 시스템 상태
   const ragStatus = ref({
@@ -96,13 +97,8 @@ export function useChat() {
   };
 
   // 모드별 모델 이름 반환
-  const getModelName = (mode: ChatMode): string => {
-    const modelNames: Record<ChatMode, string> = {
-      'unified': '통합 모델',
-      'cot': '깊은 추론 모델',
-      'rag': '대학 정보 검색 모델'
-    };
-    return modelNames[mode] || '통합 모델';
+  const getModelName = (_mode: ChatMode): string => {
+    return '대학 정보 모델';
   };
 
   // 메시지 업데이트를 위한 헬퍼 함수 (Vue 반응성 보장)
@@ -125,15 +121,19 @@ export function useChat() {
 
     // Railway 내부 URL 감지 및 외부 URL로 대체
     if (envUrl && envUrl.includes('.railway.internal')) {
-      
       return 'https://ai-rag-production.up.railway.app';
     }
 
     // 프로덕션 환경에서 /gemini-api 프록시 경로 사용 시 외부 URL로 대체
     if (!envUrl || envUrl === '/gemini-api') {
-      // 브라우저에서 Railway 호스트인지 확인
-      if (typeof window !== 'undefined' && window.location.hostname.includes('railway.app')) {
-        return 'https://ai-rag-production.up.railway.app';
+      // 브라우저에서 프로덕션 호스트인지 확인 (Railway 또는 커스텀 도메인)
+      if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        if (hostname.includes('railway.app') ||
+            hostname.includes('euljigpt.com') ||
+            hostname === 'www.euljigpt.com') {
+          return 'https://ai-rag-production.up.railway.app';
+        }
       }
     }
 
@@ -145,15 +145,19 @@ export function useChat() {
 
     // Railway 내부 URL 감지 및 외부 URL로 대체
     if (envUrl && envUrl.includes('.railway.internal')) {
-      
       return 'https://fastapi-backend-production-2cd0.up.railway.app';
     }
 
     // 프로덕션 환경에서 /api 프록시 경로 사용 시 외부 URL로 대체
     if (!envUrl || envUrl === '/api') {
-      // 브라우저에서 Railway 호스트인지 확인
-      if (typeof window !== 'undefined' && window.location.hostname.includes('railway.app')) {
-        return 'https://fastapi-backend-production-2cd0.up.railway.app';
+      // 브라우저에서 프로덕션 호스트인지 확인 (Railway 또는 커스텀 도메인)
+      if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        if (hostname.includes('railway.app') ||
+            hostname.includes('euljigpt.com') ||
+            hostname === 'www.euljigpt.com') {
+          return 'https://fastapi-backend-production-2cd0.up.railway.app';
+        }
       }
     }
 
@@ -162,23 +166,19 @@ export function useChat() {
 
   const FASTAPI_BASE_URL = getGeminiApiBaseUrl(); // AI-RAG API URL
   const BACKEND_BASE_URL = getBackendApiBaseUrl(); // 백엔드 API URL
-  const getAPIUrl = (mode: ChatMode): string => {
-    const endpoints = {
-      unified: '/chat',  // 통합 챗봇 (Function Calling 기반)
-      cot: '/cot',       // Chain of Thought
-      rag: '/rag/query'  // RAG 시스템
-    };
-    return `${FASTAPI_BASE_URL}${endpoints[mode]}`;
+  const getAPIUrl = (_mode: ChatMode): string => {
+    // RAG 시스템만 지원
+    return `${FASTAPI_BASE_URL}/rag/query`;
   };
 
   // 자동 스크롤 함수
   const scrollToBottom = () => {
-    setTimeout(() => {
-      const chatMainArea = document.querySelector('.chat-main-area');
-      if (chatMainArea) {
-        chatMainArea.scrollTop = chatMainArea.scrollHeight;
+    nextTick(() => {
+      const container = document.querySelector('.chat-messages-container');
+      if (container) {
+        container.scrollTop = container.scrollHeight;
       }
-    }, 100);
+    });
   };
 
   // 긴 답변을 아티팩트로 변환할지 판단하는 함수
@@ -304,23 +304,8 @@ export function useChat() {
            || (message.length >= 30 && hasKeyPhrase);
   };
 
-  // 메시지 전처리: 상세 답변이 필요한 경우 보고서 스타일 지침 추가
-  const prepareMessageForAI = (message: string, mode: ChatMode): string => {
-    // CoT, RAG 모드는 이미 특화된 프롬프트가 있으므로 건너뜀
-    if (mode === 'cot' || mode === 'rag') {
-      return message;
-    }
-
-    // 상세 답변이 필요한 질문인 경우 간결한 구조화 지침 추가
-    if (requiresDetailedResponse(message)) {
-      const reportStyleInstruction = `마크다운 제목(# ## ###)을 사용하여 체계적으로 답변하세요. 질문: ${message}`;
-
-      log.debug("Structured mode: Requesting formatted response");
-      log.debug("Structured mode: Original question:", message);
-      return reportStyleInstruction;
-    }
-
-    log.debug("Normal mode: Standard response");
+  // 메시지 전처리 (RAG 모드는 그대로 전달)
+  const prepareMessageForAI = (message: string, _mode: ChatMode): string => {
     return message;
   };
 
@@ -598,7 +583,7 @@ export function useChat() {
     }
   }
 
-  // 백엔드에 메시지 저장
+  // 백엔드에 메시지 저장 (단일 저장 - 중복 저장 버그 수정됨)
   async function saveMessageToBackend(
     chatId: string,
     isUser: boolean,
@@ -609,12 +594,22 @@ export function useChat() {
 
     try {
       const chat = chatHistory.value.find(c => c.id === chatId);
-      if (!chat?.sessionId) {
-        log.warn('No backend sessionId for chat:', chatId);
+      if (!chat) {
+        log.warn('Chat not found:', chatId);
         return;
       }
 
-      await apiRequest(`${BACKEND_BASE_URL}/chat/history/${chat.sessionId}/message`, {
+      // chat.id가 Backend 채팅 히스토리 ID (숫자)
+      // chat.sessionId는 AI-RAG 세션 ID (UUID) - 여기서 사용하지 않음
+      const backendChatId = chat.id;
+
+      // 숫자 형식이 아닌 경우 (로컬 채팅) 저장하지 않음
+      if (backendChatId.startsWith('chat-')) {
+        log.debug('Local chat, skipping backend save:', backendChatId);
+        return;
+      }
+
+      await apiRequest(`${BACKEND_BASE_URL}/chat/history/${backendChatId}/message`, {
         method: 'POST',
         body: JSON.stringify({
           is_user: isUser,
@@ -623,7 +618,7 @@ export function useChat() {
         })
       });
 
-      log.debug('Message saved to backend:', { chatId, isUser, modelName });
+      log.debug('Message saved to backend:', { chatId: backendChatId, isUser, modelName });
     } catch (error) {
       log.error('Failed to save message to backend:', error);
       // 실패해도 사용자 경험에 영향 없도록 에러 무시
@@ -892,8 +887,6 @@ export function useChat() {
                       final_text_length: currentChat.messages[messageIndex].text.length
                     });
 
-                    // AI 메시지를 노션에 저장
-                    await saveMessageToNotion(currentChat.id, false, finalText);
                     // AI 메시지를 백엔드에 저장
                     await saveMessageToBackend(currentChat.id, false, finalText, getModelName(chatMode.value));
 
@@ -970,19 +963,19 @@ export function useChat() {
         log.info("Falling back to general mode due to CoT failure...");
         
         if (currentChat.messages[messageIndex]) {
-          currentChat.messages[messageIndex].text = '🔄 CoT 모드에서 오류가 발생했습니다. 일반 모드로 자동 전환합니다...';
-          currentChat.messages[messageIndex].currentStep = '일반 모드로 전환 중...';
+          currentChat.messages[messageIndex].text = '🔄 CoT 모드에서 오류가 발생했습니다. RAG 모드로 자동 전환합니다...';
+          currentChat.messages[messageIndex].currentStep = 'RAG 모드로 전환 중...';
         }
-        
+
         try {
           const originalMode = chatMode.value;
-          chatMode.value = 'unified';
+          chatMode.value = 'rag';
           await callFastAPIChat(message, messageIndex);
           chatMode.value = originalMode;
           return;
         } catch (fallbackError) {
-          log.error("General mode fallback also failed:", fallbackError);
-          errorMessage = '🚫 CoT와 일반 모드 모두 실패했습니다. 잠시 후 다시 시도해주세요.';
+          log.error("RAG mode fallback also failed:", fallbackError);
+          errorMessage = '🚫 CoT와 RAG 모드 모두 실패했습니다. 잠시 후 다시 시도해주세요.';
         }
       }
 
@@ -1036,11 +1029,10 @@ export function useChat() {
           'Content-Type': 'application/json',
         },
         signal: currentController.signal, // AbortController 신호 추가
-        body: JSON.stringify(
-          chatMode.value === 'cot'
-            ? { question: preparedMessage, context: null, session_id: currentChat.sessionId }
-            : { message: preparedMessage, context: null, session_id: currentChat.sessionId }
-        )
+        body: JSON.stringify({
+          question: preparedMessage,
+          session_id: currentChat.sessionId
+        })
       });
 
       log.debug("Response status:", response.status, response.statusText);
@@ -1160,9 +1152,7 @@ export function useChat() {
           currentChat.messages[messageIndex].isStreaming = false;
           currentChat.messages[messageIndex].currentStep = undefined;
 
-          // AI 메시지를 노션에 저장 (아티팩트 전체 내용 저장)
-          await saveMessageToNotion(currentChat.id, false, reportContent);
-          // AI 메시지를 백엔드에 저장
+          // AI 메시지를 백엔드에 저장 (아티팩트 전체 내용 저장)
           await saveMessageToBackend(currentChat.id, false, reportContent, getModelName(chatMode.value));
 
           isStreaming.value = false;
@@ -1175,8 +1165,6 @@ export function useChat() {
           currentChat.messages[messageIndex].isStreaming = false;
           currentChat.messages[messageIndex].currentStep = undefined;
 
-          // AI 메시지를 노션에 저장
-          await saveMessageToNotion(currentChat.id, false, normalizedText);
           // AI 메시지를 백엔드에 저장
           await saveMessageToBackend(currentChat.id, false, normalizedText, getModelName(chatMode.value));
 
@@ -1234,13 +1222,14 @@ export function useChat() {
   }
 
   async function callFastAPIRagChat(message: string, messageIndex: number) {
-    const apiUrl = getAPIUrl(chatMode.value);
-    log.debug("RAG FastAPI call started:", apiUrl);
+    // 스트리밍 엔드포인트 사용
+    const apiUrl = `${FASTAPI_BASE_URL}/chat/stream`;
+    log.debug("RAG FastAPI streaming call started:", apiUrl);
     log.debug("Query:", message);
-    
+
     // 새로운 AbortController 생성
     currentController = new AbortController();
-    
+
     const currentChat = chatHistory.value.find(c => c.id === currentChatId.value);
     if (!currentChat) {
       log.error("Current chat not found");
@@ -1248,7 +1237,7 @@ export function useChat() {
     }
 
     try {
-      log.debug("RAG fetch request started");
+      log.debug("RAG streaming fetch request started");
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -1256,14 +1245,13 @@ export function useChat() {
         },
         signal: currentController.signal,
         body: JSON.stringify({
-          question: message,
-          prompt_type: "auto",
-          top_k: 8,
-          show_debug: true
+          message: message,
+          session_id: currentChat.sessionId,
+          mode: 'rag'
         })
       });
 
-      log.debug("RAG response status:", response.status, response.statusText);
+      log.debug("RAG streaming response status:", response.status, response.statusText);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -1271,58 +1259,123 @@ export function useChat() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      log.debug("RAG FastAPI response received");
-      
-      if (data.answer) {
-        if (currentChat.messages[messageIndex]) {
-          // 텍스트 정규화 적용
-          const normalizedAnswer = normalizeWhitespace(data.answer);
+      // 스트리밍 모드 초기화
+      if (currentChat.messages[messageIndex]) {
+        currentChat.messages[messageIndex].text = '';
+        currentChat.messages[messageIndex].isLoading = false;
+        currentChat.messages[messageIndex].isStreaming = true;
+        currentChat.messages[messageIndex].currentStep = '답변 생성 중...';
+        currentChat.messages[messageIndex].hasError = false;
+        currentChat.messages[messageIndex].modelName = "대학 정보 모델";
+        currentChat.messages[messageIndex].ragSources = [];
+      }
 
+      isStreaming.value = true;
+      messages.value = [...currentChat.messages];
+
+      // SSE 스트리밍 처리
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullResponseText = '';
+
+      if (!reader) {
+        throw new Error("응답 스트림을 읽을 수 없습니다.");
+      }
+
+      // SSE 라인 처리 함수
+      const processSSELine = (line: string) => {
+        if (!line.trim() || !line.startsWith('data: ')) return;
+
+        try {
+          const jsonStr = line.slice(6);
+          const data = JSON.parse(jsonStr);
+
+          if (data.type === 'start') {
+            // 세션 ID 저장
+            if (data.session_id && currentChat) {
+              currentChat.sessionId = data.session_id;
+              log.debug("Session ID saved");
+            }
+          } else if (data.type === 'sources') {
+            // RAG 소스 정보 저장
+            if (currentChat.messages[messageIndex] && data.sources) {
+              currentChat.messages[messageIndex].ragSources = data.sources.map((source: any) => ({
+                title: source.title || '제목 없음',
+                content: source.content || '',
+                domain: 'eulji.ac.kr',
+                category: source.category || '기타',
+                score: source.score || 0
+              }));
+              log.debug("RAG sources received:", data.sources.length);
+            }
+          } else if (data.type === 'chunk') {
+            // 실시간 스트리밍 청크 추가
+            fullResponseText += data.content;
+            if (currentChat.messages[messageIndex]) {
+              currentChat.messages[messageIndex].text = fullResponseText;
+              currentChat.messages[messageIndex].currentStep = undefined;
+              messages.value = [...currentChat.messages];
+            }
+            setTimeout(() => scrollToBottom(), 10);
+          } else if (data.type === 'done') {
+            log.debug("RAG streaming completed");
+          } else if (data.type === 'error') {
+            throw new Error(data.error);
+          }
+        } catch (parseError) {
+          log.warn("JSON parsing failed:", line, parseError);
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          // 스트리밍 종료 시 버퍼에 남은 데이터 처리
+          if (buffer.trim()) {
+            log.debug("Processing remaining buffer:", buffer.substring(0, 100));
+            processSSELine(buffer);
+          }
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          processSSELine(line);
+        }
+      }
+
+      // 스트리밍 완료 후 처리
+      if (currentChat.messages[messageIndex]) {
+        const normalizedAnswer = normalizeWhitespace(fullResponseText);
+
+        // 빈 응답 처리
+        if (!normalizedAnswer.trim()) {
+          log.warn("RAG returned empty response");
+          currentChat.messages[messageIndex].text = '관련 정보를 찾지 못했습니다. 다른 질문을 해보세요.';
+          currentChat.messages[messageIndex].hasError = true;
+        } else {
           currentChat.messages[messageIndex].text = normalizedAnswer;
-          currentChat.messages[messageIndex].isLoading = false;
-          currentChat.messages[messageIndex].isStreaming = false;
-          currentChat.messages[messageIndex].currentStep = undefined;
-          currentChat.messages[messageIndex].hasError = false;
-          currentChat.messages[messageIndex].modelName = "대학 정보 검색";  // RAG 모드 모델 이름
+        }
 
-          // RAG 소스 정보 추가 (정보 제공 요청 시에만)
-          // 인사말, 범위 외 질문, 검색 품질 낮은 경우는 참고문서를 표시하지 않음
-          const shouldShowSources = !['greeting', 'out_of_scope', 'low_relevance'].includes(data.prompt_type_used || '');
+        currentChat.messages[messageIndex].isStreaming = false;
+        currentChat.messages[messageIndex].currentStep = undefined;
 
-          if (shouldShowSources && data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
-            currentChat.messages[messageIndex].ragSources = data.sources.map((source: any) => ({
-              title: source.title || '제목 없음',
-              content: source.content || '',
-              domain: source.domain || 'eulji.ac.kr',
-              category: source.category || '기타',
-              score: source.score || 0
-            }));
-          } else {
-            currentChat.messages[messageIndex].ragSources = [];
-          }
+        messages.value = [...currentChat.messages];
 
-          // RAG 디버그 정보 표시 (옵셔널)
-          if (data.debug_info && data.debug_info.length > 0) {
-            log.debug("RAG debug info:", data.debug_info);
-          }
-
-          // RAG 메타데이터 표시 (처리시간, 검색된 문서 수 등)
-          log.debug(`RAG performance: ${data.processing_time?.toFixed(2)}s, docs: ${data.search_results_count}, prompt: ${data.prompt_type_used}`);
-
-          // Vue 반응성을 위해 messages.value 업데이트 (화면에 응답이 표시되도록)
-          messages.value = [...currentChat.messages];
-
-          // AI 메시지를 노션에 저장
-          await saveMessageToNotion(currentChat.id, false, normalizedAnswer);
-          // AI 메시지를 백엔드에 저장
+        // AI 메시지를 백엔드에 저장 (빈 응답이 아닌 경우만)
+        if (normalizedAnswer.trim()) {
           await saveMessageToBackend(currentChat.id, false, normalizedAnswer, getModelName(chatMode.value));
         }
-      } else {
-        throw new Error('RAG 응답에서 답변을 찾을 수 없습니다.');
       }
 
       isStreaming.value = false;
+      saveChatHistory();
+
     } catch (error: any) {
       log.error("RAG FastAPI call error:", error);
 
@@ -1330,6 +1383,7 @@ export function useChat() {
 
       if (error.name === 'AbortError') {
         log.debug("RAG search stopped by user");
+        isStreaming.value = false;
         return;
       } else {
         if (error.message.includes('503')) {
@@ -1342,7 +1396,7 @@ export function useChat() {
           errorMessage = '을지대 정보검색 연결에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.';
         }
       }
-      
+
       if (currentChat.messages[messageIndex]) {
         currentChat.messages[messageIndex].text = errorMessage;
         currentChat.messages[messageIndex].isLoading = false;
@@ -1350,7 +1404,6 @@ export function useChat() {
         currentChat.messages[messageIndex].currentStep = undefined;
         currentChat.messages[messageIndex].hasError = true;
 
-        // Vue 반응성을 위해 messages.value 업데이트 (에러 메시지가 표시되도록)
         messages.value = [...currentChat.messages];
       }
 
@@ -1448,8 +1501,8 @@ export function useChat() {
             currentChat.messages[messageIndex].isStreaming = false;
             isStreaming.value = false;
 
-            // AI 메시지를 노션에 저장
-            saveMessageToNotion(currentChat.id, false, responseText);
+            // AI 메시지를 백엔드에 저장
+            saveMessageToBackend(currentChat.id, false, responseText, getModelName(chatMode.value));
 
             saveChatHistory();
           }
@@ -1500,26 +1553,16 @@ export function useChat() {
     }
   }
 
-  // 노션에 메시지 저장 함수
-  async function saveMessageToNotion(chatHistoryId: string, isUser: boolean, message: string) {
-    if (!isAuthenticated()) return;
-
-    try {
-      await apiRequest(`${BACKEND_BASE_URL}/chat/history/${chatHistoryId}/message`, {
-        method: 'POST',
-        body: JSON.stringify({
-          is_user: isUser,
-          message: message
-        })
-      });
-      log.debug('Message saved to backend:', isUser ? 'user' : 'AI');
-    } catch (error) {
-      log.error('Failed to save message to backend:', error);
-    }
-  }
-
   async function handleSend(inputValue: { value: string }, images?: File[]) {
+    // 중복 전송 방지: 이미 전송 중이면 무시
+    if (isSendingLock) {
+      log.debug('handleSend blocked: already sending');
+      return;
+    }
     if ((!inputValue.value.trim() && !images?.length) || isLoading.value) return;
+
+    // 락 설정 (가장 먼저)
+    isSendingLock = true;
 
     const userMessageText = inputValue.value.trim();
     const currentChat = chatHistory.value.find(c => c.id === currentChatId.value);
@@ -1542,8 +1585,6 @@ export function useChat() {
     // Vue 반응성을 위해 messages.value 즉시 업데이트 (사용자 메시지가 바로 보이도록)
     messages.value = [...currentChat.messages];
 
-    // 사용자 메시지를 노션에 즉시 저장
-    await saveMessageToNotion(currentChat.id, true, userMessageText);
     // 사용자 메시지를 백엔드에 저장
     await saveMessageToBackend(currentChat.id, true, userMessageText, undefined);
 
@@ -1568,21 +1609,11 @@ export function useChat() {
       "필요한 정보를 수집하고 있어요..."
     ];
 
-    const unifiedLoadingMessages = [
-      "답변을 생성하고 있어요...",
-      "생각하고 있어요...",
-      "최선의 답변을 준비 중이에요...",
-      "정보를 정리하고 있어요...",
-      "답변을 작성하고 있어요..."
-    ];
-
     const getRandomMessage = (messages: string[]) => {
       return messages[Math.floor(Math.random() * messages.length)];
     };
 
     const modeMessages: Record<ChatMode, string> = {
-      unified: getRandomMessage(unifiedLoadingMessages),
-      cot: "단계별 추론 시작...",
       rag: getRandomMessage(ragLoadingMessages)
     };
 
@@ -1601,10 +1632,10 @@ export function useChat() {
     // Vue 반응성을 위해 messages.value 즉시 업데이트 (로딩 메시지가 바로 보이도록)
     messages.value = [...currentChat.messages];
 
-    // 로딩 메시지 로테이션 (RAG/통합 모드에서 대기 시간을 덜 느끼도록)
+    // 로딩 메시지 로테이션 (RAG 모드에서 대기 시간을 덜 느끼도록)
     let loadingMessageInterval: ReturnType<typeof setInterval> | null = null;
-    if (chatMode.value === 'rag' || chatMode.value === 'unified') {
-      const loadingMessages = chatMode.value === 'rag' ? ragLoadingMessages : unifiedLoadingMessages;
+    if (chatMode.value === 'rag') {
+      const loadingMessages = ragLoadingMessages;
       let messageIndex = 0;
 
       loadingMessageInterval = setInterval(() => {
@@ -1627,9 +1658,8 @@ export function useChat() {
     try {
       if (images && images.length > 0) {
         await callFastAPIChatWithImages(userMessageText, images, loadingMessageIndex);
-      } else if (chatMode.value === 'cot') {
-        await callFastAPICotChat(userMessageText, loadingMessageIndex);
-      } else if (chatMode.value === 'rag') {
+      } else {
+        // RAG 모드만 지원
         // RAG 모드: 초기화 상태 확인 및 필요시 자동 초기화
         if (!ragStatus.value.initialized && !ragStatus.value.isInitializing) {
           log.debug('RAG not initialized - starting auto-initialization');
@@ -1650,8 +1680,6 @@ export function useChat() {
         }
 
         await callFastAPIRagChat(userMessageText, loadingMessageIndex);
-      } else {
-        await callFastAPIChat(userMessageText, loadingMessageIndex);
       }
       
       // 첫 번째 메시지인 경우 AI로 제목 생성 (비동기)
@@ -1707,6 +1735,7 @@ export function useChat() {
         loadingMessageInterval = null;
       }
       isLoading.value = false;
+      isSendingLock = false; // 전송 락 해제
       saveChatHistory();
       // scrollToBottom will be called from the component
     }
@@ -1735,12 +1764,7 @@ export function useChat() {
   }
 
   function getChatModeInfo() {
-    const modeInfo: Record<ChatMode, { name: string; description: string }> = {
-      unified: { name: '통합 채팅', description: '범용 AI 대화' },
-      cot: { name: '깊은 추론 모델', description: 'Chain of Thought 방식' },
-      rag: { name: '대학 정보 검색 모델', description: '을지대학교 공식 자료 기반 정보 검색' }
-    };
-    return modeInfo[chatMode.value];
+    return { name: '대학 정보 모델', description: '을지대학교 공식 자료 기반 정보 검색' };
   }
 
   function stopResponse() {

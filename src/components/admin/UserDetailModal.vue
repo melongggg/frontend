@@ -34,7 +34,8 @@
               <h4 class="profile-name">{{ user.name }}</h4>
               <p class="profile-nickname">@{{ user.nickname }}</p>
               <div class="profile-badges">
-                <span v-if="user.is_admin" class="badge badge-admin">관리자</span>
+                <span v-if="user.admin_role === 'admin'" class="badge badge-admin">Admin</span>
+                <span v-else-if="user.admin_role === 'dev'" class="badge badge-dev">Developer</span>
                 <span v-if="user.is_pro" class="badge badge-pro">Pro</span>
                 <span v-if="user.oauth_provider" class="badge badge-oauth">{{ user.oauth_provider }}</span>
               </div>
@@ -87,19 +88,20 @@
                   <span class="toggle-slider"></span>
                 </label>
               </div>
-              <div class="toggle-item">
-                <div class="toggle-info">
-                  <span class="toggle-label">관리자</span>
-                  <span class="toggle-desc">관리자 페이지 접근 가능</span>
+              <div class="select-item">
+                <div class="select-info">
+                  <span class="select-label">관리자 권한</span>
+                  <span class="select-desc">관리자 페이지 접근 레벨</span>
                 </div>
-                <label class="toggle-switch">
-                  <input
-                    type="checkbox"
-                    :checked="user.is_admin"
-                    @change="toggleAdmin"
-                  />
-                  <span class="toggle-slider"></span>
-                </label>
+                <select
+                  class="role-select"
+                  :value="user.admin_role || ''"
+                  @change="changeAdminRole"
+                >
+                  <option value="">일반 사용자</option>
+                  <option value="dev">Developer</option>
+                  <option value="admin">Admin</option>
+                </select>
               </div>
             </div>
           </div>
@@ -110,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import type { UserDetail } from '../../services/api'
+import type { UserDetail, AdminRole } from '../../services/api'
 
 const props = defineProps<{
   user: UserDetail | null
@@ -119,7 +121,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'update', data: { is_pro?: boolean; is_admin?: boolean }): void
+  (e: 'update', data: { is_pro?: boolean; admin_role?: AdminRole }): void
 }>()
 
 const formatDateTime = (dateString: string) => {
@@ -139,9 +141,11 @@ const togglePro = () => {
   }
 }
 
-const toggleAdmin = () => {
+const changeAdminRole = (event: Event) => {
   if (props.user) {
-    emit('update', { is_admin: !props.user.is_admin })
+    const target = event.target as HTMLSelectElement
+    const value = target.value as AdminRole | ''
+    emit('update', { admin_role: value === '' ? null : value as AdminRole })
   }
 }
 </script>
@@ -300,13 +304,18 @@ const toggleAdmin = () => {
 }
 
 .badge-admin {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.badge-dev {
+  background-color: #eff6ff;
+  color: #2563eb;
 }
 
 .badge-pro {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: #dcfce7;
+  color: #166534;
 }
 
 .badge-oauth {
@@ -425,6 +434,56 @@ const toggleAdmin = () => {
 
 .toggle-switch input:checked + .toggle-slider:before {
   transform: translateX(20px);
+}
+
+/* Select Item (admin_role dropdown) */
+.select-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+}
+
+.select-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.select-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.select-desc {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.role-select {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  min-width: 130px;
+}
+
+.role-select:hover {
+  border-color: #9ca3af;
+}
+
+.role-select:focus {
+  border-color: #02478A;
+  box-shadow: 0 0 0 2px rgba(2, 71, 138, 0.1);
 }
 
 @media (max-width: 480px) {

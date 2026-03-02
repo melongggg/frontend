@@ -16,37 +16,39 @@
   }
 }
 
-/* Chat messages area: 적절한 스크롤 설정 */
+/* Chat messages area: 스크롤은 부모 컨테이너(.chat-messages-container)에서 처리 */
 .chat-messages-area {
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
-/* 전체 채팅 영역 스크롤바 스타일링 */
-.chat-main-area::-webkit-scrollbar {
+/* 메시지 영역 스크롤바 스타일링 */
+.chat-messages-container::-webkit-scrollbar {
   width: 6px;
 }
 
-.chat-main-area::-webkit-scrollbar-track {
+.chat-messages-container::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.chat-main-area::-webkit-scrollbar-thumb {
+.chat-messages-container::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
 }
 
-.chat-main-area::-webkit-scrollbar-thumb:hover {
+.chat-messages-container::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
 }
+
 
 .chat-content-col {
   display: flex;
   flex-direction: column;
-  flex: 1 1 0%;
+  flex: 1;
   min-width: 0;
+  height: 100%;
   min-height: 0;
-  height: 100vh;
+  padding: 0;
+  box-sizing: border-box;
   overflow: hidden;
   position: relative;
 }
@@ -59,6 +61,7 @@
   height: 100%;
   overflow: hidden;
   padding: 0;
+  position: relative;
 }
 
 .chat-main-area {
@@ -68,8 +71,7 @@
   width: 100%;
   height: 100%;
   max-width: min(1000px, 100%);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   box-sizing: border-box;
 }
 
@@ -89,7 +91,8 @@
   flex: 1;
   min-height: 0;
   box-sizing: border-box;
-  overflow: visible; /* 스크롤을 상위 컨테이너로 위임 */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 
@@ -165,12 +168,14 @@
     min-height: 50px;
   }
 }
+
 .sidebar-inner {
   height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
+
 :root {
   --default-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Ubuntu, "Helvetica Neue", Helvetica, Arial, "PingFang SC",
@@ -206,21 +211,34 @@ button {
   overflow: hidden;
   display: flex;
 }
+
+.main-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  min-height: 0;
+  position: relative;
+  background: var(--color-bg-primary);
+  overflow: hidden;
+}
+
+
+
 .chatbot-sidebar-wrapper {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  flex-wrap: nowrap;
   position: relative;
   width: 18vw;
   min-width: 200px;
   max-width: 320px;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
   z-index: 8;
   overflow: hidden;
 }
+
 .frame {
   display: flex;
   flex-direction: column;
@@ -233,6 +251,7 @@ button {
   padding: 8px 0 0 0;
   z-index: 9;
 }
+
 .chatbot-logo-header {
   display: flex;
   align-items: center;
@@ -247,6 +266,7 @@ button {
   /* border-right removed to prevent double lines */
   z-index: 10;
 }
+
 .frame-1 {
   display: flex;
   align-items: center;
@@ -258,6 +278,7 @@ button {
   width: 145px;
   z-index: 11;
 }
+
 .common-icon {
   flex-shrink: 0;
   position: relative;
@@ -268,6 +289,7 @@ button {
   z-index: 12;
   overflow: hidden;
 }
+
 .group {
   flex-shrink: 0;
   position: relative;
@@ -275,6 +297,7 @@ button {
   height: 36.3px;
   z-index: 13;
 }
+
 .eulgpt {
   display: flex;
   align-items: flex-start;
@@ -293,29 +316,30 @@ button {
   letter-spacing: 0.48px;
   z-index: 14;
 }
+
 .union {
   position: absolute;
   width: 10.39px;
   height: 10.391px;
   top: 1.603px;
   left: 95.61px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/XMrsiJsZg5.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/XMrsiJsZg5.png) no-repeat center;
   background-size: cover;
   z-index: 15;
 }
+
 .edit-icon {
   flex-shrink: 0;
   position: relative;
   width: 22px;
   height: 22px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/SLV8Hf7yf3.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/SLV8Hf7yf3.png) no-repeat center;
   background-size: cover;
   z-index: 16;
   overflow: hidden;
   display: none;
 }
+
 .frame-2 {
   display: flex;
   flex-direction: column;
@@ -326,10 +350,13 @@ button {
   gap: 40px;
   position: relative;
   min-width: 0;
-  height: 681px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   padding: 20px 0 0 0;
   z-index: 17;
 }
+
 .chatbot-menu-item {
   display: flex;
   flex-direction: column;
@@ -343,6 +370,7 @@ button {
   background: #ffffff;
   z-index: 18;
 }
+
 .frame-3 {
   display: flex;
   align-items: center;
@@ -355,6 +383,7 @@ button {
   overflow: visible;
   z-index: 19;
 }
+
 .group-4 {
   flex-shrink: 0;
   position: relative;
@@ -370,6 +399,7 @@ button {
   max-width: none;
   max-height: none;
 }
+
 .group-5 {
   position: relative;
   width: 20px;
@@ -379,6 +409,7 @@ button {
   background-size: contain;
   z-index: 21;
 }
+
 .frame-6 {
   position: relative;
   width: 25px;
@@ -389,6 +420,7 @@ button {
   overflow: hidden;
   border-radius: 6.251px;
 }
+
 .day {
   display: flex;
   align-items: center;
@@ -406,6 +438,7 @@ button {
   white-space: nowrap;
   z-index: 23;
 }
+
 .empty-classroom-check {
   flex-shrink: 0;
   flex-basis: auto;
@@ -420,6 +453,7 @@ button {
   white-space: nowrap;
   z-index: 24;
 }
+
 .frame-7 {
   display: flex;
   align-items: center;
@@ -431,16 +465,17 @@ button {
   min-width: 0;
   z-index: 25;
 }
+
 .group-8 {
   flex-shrink: 0;
   position: relative;
   width: 25px;
   height: 25px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/MxNQJV51Vc.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/MxNQJV51Vc.png) no-repeat center;
   background-size: cover;
   z-index: 26;
 }
+
 .library-study-room-reservation {
   flex-shrink: 0;
   flex-basis: auto;
@@ -455,6 +490,7 @@ button {
   white-space: nowrap;
   z-index: 27;
 }
+
 .frame-9 {
   display: flex;
   align-items: center;
@@ -465,6 +501,7 @@ button {
   width: 99px;
   z-index: 28;
 }
+
 .group-a {
   flex-shrink: 0;
   position: relative;
@@ -472,6 +509,7 @@ button {
   height: 25px;
   z-index: 29;
 }
+
 .frame-b {
   position: absolute;
   width: 100%;
@@ -483,6 +521,7 @@ button {
   overflow: hidden;
   border-radius: 5.001px;
 }
+
 .frame-c {
   position: absolute;
   width: 100%;
@@ -494,6 +533,7 @@ button {
   overflow: hidden;
   border-radius: 5.001px;
 }
+
 .group-d {
   position: absolute;
   width: 56.33%;
@@ -502,28 +542,29 @@ button {
   left: 18.45%;
   z-index: 32;
 }
+
 .group-e {
   position: absolute;
   width: 51.71%;
   height: 100%;
   top: 0;
   left: 0;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/k8NEUMjqMw.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/k8NEUMjqMw.png) no-repeat center;
   background-size: 100% 100%;
   z-index: 33;
 }
+
 .group-f {
   position: absolute;
   width: 25.9%;
   height: 88.37%;
   top: 6.77%;
   left: 74.1%;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/N6DoiTisUV.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/N6DoiTisUV.png) no-repeat center;
   background-size: 100% 100%;
   z-index: 34;
 }
+
 .status {
   flex-shrink: 0;
   flex-basis: auto;
@@ -538,6 +579,7 @@ button {
   white-space: nowrap;
   z-index: 35;
 }
+
 .frame-10 {
   display: flex;
   flex-direction: column;
@@ -547,11 +589,12 @@ button {
   gap: 10px;
   position: relative;
   width: 100%;
-  height: 532px;
+  height: 10px;
   padding: 0 clamp(10px, 5%, 20px);
   z-index: 36;
   min-width: 0;
 }
+
 .chat-list-link {
   display: flex;
   align-items: center;
@@ -565,6 +608,7 @@ button {
   z-index: 37;
   min-width: 0;
 }
+
 .conversation-list {
   flex: 1;
   min-width: 0;
@@ -582,6 +626,7 @@ button {
   white-space: nowrap;
   z-index: 38;
 }
+
 .frame-11 {
   display: flex;
   flex-direction: column;
@@ -593,6 +638,7 @@ button {
   width: 216px;
   z-index: 39;
 }
+
 .chat-list-container {
   display: flex;
   align-items: center;
@@ -604,6 +650,7 @@ button {
   padding: 10px 15px 10px 15px;
   z-index: 40;
 }
+
 .start-chat {
   flex-shrink: 0;
   flex-basis: auto;
@@ -622,6 +669,7 @@ button {
   max-width: 168px;
   max-height: 17px;
 }
+
 .side-footer {
   display: flex;
   align-items: center;
@@ -637,17 +685,18 @@ button {
   /* border-right removed to prevent double lines */
   z-index: 42;
 }
+
 .ellipse {
   flex-shrink: 0;
   position: relative;
   width: 23px;
   height: 23px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/LAggf25J0m.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/LAggf25J0m.png) no-repeat center;
   background-size: cover;
   z-index: 43;
   border-radius: 50%;
 }
+
 .frame-12 {
   display: none;
   align-items: flex-end;
@@ -660,6 +709,7 @@ button {
   padding: 10px 10px 10px 10px;
   z-index: 44;
 }
+
 .notification-container {
   position: relative;
   z-index: 10000;
@@ -674,13 +724,13 @@ button {
   position: relative;
   width: 23px;
   height: 24px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/iOezR9XJsU.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/iOezR9XJsU.png) no-repeat center;
   background-size: cover;
   z-index: 10001;
   cursor: pointer;
   pointer-events: auto;
 }
+
 .icon-info {
   display: flex;
   flex-direction: column;
@@ -698,16 +748,17 @@ button {
   cursor: pointer;
   pointer-events: auto;
 }
+
 .vector {
   flex-shrink: 0;
   position: relative;
   width: 18px;
   height: 18px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/SMBaVrFnBf.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/SMBaVrFnBf.png) no-repeat center;
   background-size: cover;
   z-index: 47;
 }
+
 .frame-13 {
   display: flex;
   flex-direction: column;
@@ -725,6 +776,7 @@ button {
   margin-bottom: 18px;
   align-items: center;
 }
+
 .frame-14 {
   display: flex;
   flex-direction: column;
@@ -747,6 +799,7 @@ button {
   /* margin-right: auto; */
   max-width: 100vw;
 }
+
 /* Tablet and below (1024px) */
 @media (max-width: 1024px) {
   .frame-14 {
@@ -764,6 +817,7 @@ button {
     padding: 12px 8px;
   }
 }
+
 .frame-15 {
   display: flex;
   align-items: center;
@@ -777,6 +831,7 @@ button {
   z-index: 50;
   max-width: 710px;
 }
+
 .ask-anything {
   flex-grow: 1;
   flex-shrink: 0;
@@ -792,6 +847,7 @@ button {
   white-space: nowrap;
   z-index: 51;
 }
+
 .frame-16 {
   display: flex;
   align-items: center;
@@ -802,6 +858,7 @@ button {
   position: relative;
   z-index: 52;
 }
+
 .input-state-button {
   display: flex;
   align-items: center;
@@ -819,16 +876,17 @@ button {
   overflow: hidden;
   border-radius: 100px;
 }
+
 .vector-17 {
   flex-shrink: 0;
   position: relative;
   width: 13.5px;
   height: 13.5px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/ftNjVTs1UO.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/ftNjVTs1UO.png) no-repeat center;
   background-size: cover;
   z-index: 54;
 }
+
 .input-state-button-18 {
   display: flex;
   align-items: center;
@@ -846,16 +904,17 @@ button {
   overflow: hidden;
   border-radius: 100px;
 }
+
 .vector-19 {
   flex-shrink: 0;
   position: relative;
   width: 13px;
   height: 16px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/ZrdKzUDJJP.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/ZrdKzUDJJP.png) no-repeat center;
   background-size: 100% 100%;
   z-index: 56;
 }
+
 .frame-1a {
   display: flex;
   align-items: center;
@@ -866,6 +925,7 @@ button {
   width: 277px;
   z-index: 57;
 }
+
 .privacy-policy {
   flex-shrink: 0;
   flex-basis: auto;
@@ -880,6 +940,7 @@ button {
   white-space: nowrap;
   z-index: 58;
 }
+
 .vertical-line {
   display: flex;
   align-items: center;
@@ -898,6 +959,7 @@ button {
   white-space: nowrap;
   z-index: 59;
 }
+
 .copyright-text {
   display: flex;
   align-items: center;
@@ -916,6 +978,7 @@ button {
   white-space: nowrap;
   z-index: 60;
 }
+
 .frame-1b {
   display: flex;
   flex-direction: column;
@@ -938,6 +1001,7 @@ button {
   overflow: hidden;
   border-radius: 15px;
 }
+
 .frame-1c {
   display: flex;
   align-items: center;
@@ -951,6 +1015,7 @@ button {
   z-index: 1;
   max-width: 710px;
 }
+
 .ask-anything-1d {
   flex-grow: 1;
   flex-shrink: 0;
@@ -966,6 +1031,7 @@ button {
   white-space: nowrap;
   z-index: 2;
 }
+
 .frame-1e {
   display: flex;
   align-items: center;
@@ -977,6 +1043,7 @@ button {
   min-width: 0;
   z-index: 3;
 }
+
 .input-button {
   display: flex;
   align-items: center;
@@ -994,16 +1061,17 @@ button {
   overflow: hidden;
   border-radius: 100px;
 }
+
 .vector-1f {
   flex-shrink: 0;
   position: relative;
   width: 12px;
   height: 12px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/pLeFDcykd9.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/pLeFDcykd9.png) no-repeat center;
   background-size: cover;
   z-index: 5;
 }
+
 .input-button-20 {
   display: flex;
   align-items: center;
@@ -1021,16 +1089,17 @@ button {
   overflow: hidden;
   border-radius: 100px;
 }
+
 .vector-21 {
   flex-shrink: 0;
   position: relative;
   width: 13px;
   height: 16px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/1UVQSC7ZwD.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/1UVQSC7ZwD.png) no-repeat center;
   background-size: 100% 100%;
   z-index: 7;
 }
+
 .input-button-22 {
   display: flex;
   align-items: center;
@@ -1054,17 +1123,20 @@ button {
   overflow: hidden;
   border-radius: 100px;
 }
+
 /* Tablet styles (641px ~ 1024px) */
 @media (min-width: 641px) and (max-width: 1024px) {
   .main-container {
     width: 100vw;
     height: 100vh;
   }
+
   .chatbot-sidebar-wrapper {
     width: 220px;
     min-width: 180px;
     max-width: 260px;
   }
+
   .frame-13,
   .frame-1b {
     width: 70vw;
@@ -1082,6 +1154,7 @@ button {
     min-width: 0;
     height: 100vh;
   }
+
   .frame-13,
   .frame-1b {
     width: 98vw;
@@ -1090,13 +1163,13 @@ button {
     max-width: 100vw;
   }
 }
+
 .button-group {
   flex-shrink: 0;
   position: relative;
   width: 8px;
   height: 15px;
-  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/j7YT7a8JTW.png)
-    no-repeat center;
+  background: url(https://codia-f2c.s3.us-west-1.amazonaws.com/image/2025-07-31/j7YT7a8JTW.png) no-repeat center;
   background-size: 100% 100%;
   z-index: 62;
 }

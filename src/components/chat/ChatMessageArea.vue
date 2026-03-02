@@ -130,8 +130,10 @@ const messagesContainer = ref<HTMLElement | null>(null);
 // 스크롤을 맨 아래로 이동하는 함수
 const scrollToBottom = () => {
   nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    // 부모 컨테이너(.chat-messages-container)를 스크롤
+    const container = document.querySelector('.chat-messages-container');
+    if (container) {
+      container.scrollTop = container.scrollHeight;
     }
   });
 };

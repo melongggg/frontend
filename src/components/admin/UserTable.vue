@@ -39,9 +39,10 @@
             <td>{{ user.nickname }}</td>
             <td class="date-cell">{{ formatDate(user.created_at) }}</td>
             <td class="status-cell">
-              <span v-if="user.is_admin" class="badge badge-admin">관리자</span>
-              <span v-else-if="user.is_pro" class="badge badge-pro">Pro</span>
-              <span v-else class="badge badge-normal">일반</span>
+              <span v-if="user.admin_role === 'admin'" class="badge badge-admin">Admin</span>
+              <span v-else-if="user.admin_role === 'dev'" class="badge badge-dev">Dev</span>
+              <span v-if="user.is_pro" class="badge badge-pro">Pro</span>
+              <span v-if="!user.admin_role && !user.is_pro" class="badge badge-normal">일반</span>
               <span v-if="user.oauth_provider === 'kakao'" class="badge badge-kakao">카카오</span>
             </td>
             <td class="action-cell">
@@ -159,13 +160,18 @@ const formatDate = (dateString: string) => {
 }
 
 .badge-admin {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.badge-dev {
+  background-color: #eff6ff;
+  color: #2563eb;
 }
 
 .badge-pro {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: #dcfce7;
+  color: #166534;
 }
 
 .badge-normal {

@@ -198,7 +198,7 @@ onUnmounted(() => {
   gap: 10px;
   position: relative;
   width: 100%;
-  height: 532px;
+  flex:1;
   padding: 0 clamp(10px, 5%, 20px);
   z-index: 36;
   min-width: 0;
@@ -269,8 +269,13 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 5px;
   width: 100%;
-  overflow-y: hidden;
+  overflow-y:scroll;
 }
+
+.chat-list-container-history::-webkit-scrollbar{
+  display:none;
+}
+
 
 .chat-history-item {
   display: flex;
@@ -366,11 +371,13 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: flex-start;
   flex-wrap: nowrap;
-  flex-shrink: 0;
+  flex: 1;            
+  min-height: 0;
   gap: 5px;
   position: relative;
   width: 100%;
   z-index: 39;
+  
 }
 .chat-list-container {
   display: flex;

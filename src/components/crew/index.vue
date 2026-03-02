@@ -17,10 +17,8 @@
       <FooterContainer ref="footerRef" />
     </div>
     
-    <!-- Progress Bar -->
     <div class="scroll-progress" :style="{ transform: `scaleX(${scrollProgress})` }"></div>
     
-    <!-- Floating Action Button -->
     <div class="floating-actions" :class="{ visible: showFloatingActions }">
       <button class="scroll-to-top" @click="scrollToTop" title="위로 가기">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -79,8 +77,6 @@ const updateScrollEffects = () => {
 
   scrollProgress.value = Math.min(scrolled / maxScroll, 1)
   showFloatingActions.value = scrolled > 300
-
-  // 배경 그라데이션은 absolute로 변경되어 parallax 효과 제거됨
 
   const sections = [
     { el: heroRef.value?.$el as HTMLElement | undefined, speed: 0.05 },
@@ -147,6 +143,12 @@ const setupIntersectionObserver = () => {
 }
 
 onMounted(() => {
+  // [수정 포인트] 페이지 진입 시 전용 클래스 추가
+  document.documentElement.classList.add('crew-page-active')
+  document.body.classList.add('crew-page-active')
+  const appElement = document.getElementById('app')
+  if (appElement) appElement.classList.add('crew-page-active')
+
   nextTick(() => {
     setupIntersectionObserver()
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -162,6 +164,12 @@ onUnmounted(() => {
     intersectionObserver.disconnect()
     intersectionObserver = null
   }
+
+  // [수정 포인트] 페이지 이탈 시 전용 클래스 제거 (배경색 원상복구)
+  document.documentElement.classList.remove('crew-page-active')
+  document.body.classList.remove('crew-page-active')
+  const appElement = document.getElementById('app')
+  if (appElement) appElement.classList.remove('crew-page-active')
 })
 </script>
 
@@ -407,8 +415,12 @@ onUnmounted(() => {
 </style>
 
 <style>
-/* 전역 스타일로 body와 html 배경색 설정 */
-body, html {
+/* [수정 포인트]
+  전역 스타일이지만, .crew-page-active 클래스가 있을 때만 적용되도록 한정했습니다.
+  이제 페이지를 떠나면(unmounted) 클래스가 사라지므로 이 스타일도 자동으로 풀립니다.
+*/
+html.crew-page-active,
+body.crew-page-active {
   background-color: #141D30 !important;
   background: #141D30 !important;
   margin: 0;
@@ -421,7 +433,7 @@ body, html {
   scroll-behavior: smooth;
 }
 
-#app {
+#app.crew-page-active {
   background-color: #141D30 !important;
   background: #141D30 !important;
   min-height: 100vh;

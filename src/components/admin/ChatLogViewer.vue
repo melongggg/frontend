@@ -1,13 +1,41 @@
 <template>
   <div class="chat-log-viewer">
-    <h2 class="section-title">채팅 로그 뷰어</h2>
+    <div class="header">
+      <h2 class="section-title">채팅 기록 관리</h2>
+      <button class="export-all-btn" @click="showExportModal = true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        기간별 내보내기
+      </button>
+    </div>
 
     <div class="viewer-layout">
       <!-- 채팅 세션 목록 -->
       <div class="sessions-panel">
         <div class="panel-header">
           <h3>채팅 세션</h3>
-          <span class="session-count">{{ sessions.length }}개</span>
+          <span class="session-count">{{ total }}개</span>
+        </div>
+
+        <!-- 날짜 필터 -->
+        <div class="date-filter">
+          <div class="date-input-group">
+            <label>시작일</label>
+            <input type="date" v-model="startDate" @change="handleDateFilter" />
+          </div>
+          <div class="date-input-group">
+            <label>종료일</label>
+            <input type="date" v-model="endDate" @change="handleDateFilter" />
+          </div>
+          <button v-if="startDate || endDate" class="clear-filter-btn" @click="clearDateFilter" title="필터 초기화">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
 
         <div class="search-box">
@@ -18,7 +46,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="세션 검색..."
+            placeholder="제목, 사용자 검색..."
             @input="debouncedSearch"
           />
         </div>
@@ -38,8 +66,8 @@
             <div class="session-info">
               <span class="session-title">{{ session.title || '제목 없음' }}</span>
               <span class="session-meta">
-                <span class="user-badge">{{ getUserName(session.user_id) }}</span>
-                <span class="message-count">{{ getMessageCount(session.id) }}개 메시지</span>
+                <span class="user-badge">{{ getUserDisplayName(session) }}</span>
+                <span class="message-count">{{ session.message_count }}개 메시지</span>
               </span>
             </div>
             <span class="session-date">{{ formatDate(session.created_at) }}</span>
@@ -60,13 +88,14 @@
 
       <!-- 채팅 내용 -->
       <div class="chat-panel">
-        <div v-if="selectedSession" class="chat-content">
+        <div v-if="selectedSession && chatDetail" class="chat-content">
           <div class="chat-header">
             <div class="chat-info">
-              <h3>{{ selectedSession.title || '제목 없음' }}</h3>
+              <h3>{{ chatDetail.title || '제목 없음' }}</h3>
               <span class="chat-meta">
-                사용자: {{ getUserName(selectedSession.user_id) }} |
-                생성: {{ formatDateFull(selectedSession.created_at) }}
+                사용자: {{ getUserDisplayName(chatDetail) }}
+                <span v-if="chatDetail.user?.email" class="user-email">({{ chatDetail.user.email }})</span>
+                <span v-if="chatDetail.created_at"> | 생성: {{ formatDateFull(chatDetail.created_at) }}</span>
               </span>
             </div>
             <div class="chat-actions">
@@ -93,7 +122,7 @@
 
           <div v-else class="messages-container">
             <div
-              v-for="(message, idx) in messages"
+              v-for="(message, idx) in chatDetail.messages"
               :key="idx"
               class="message-bubble"
               :class="{ 'user-message': message.is_user, 'ai-message': !message.is_user }"
@@ -105,11 +134,14 @@
                     {{ getModelDisplayName(message.model_name) }}
                   </span>
                 </span>
+                <span v-if="message.created_at" class="message-time">
+                  {{ formatTime(message.created_at) }}
+                </span>
               </div>
               <div class="message-body" v-html="formatMessage(message.message)"></div>
             </div>
 
-            <div v-if="messages.length === 0" class="empty-messages">
+            <div v-if="chatDetail.messages.length === 0" class="empty-messages">
               이 세션에 메시지가 없습니다
             </div>
           </div>
@@ -132,7 +164,42 @@
         <p class="delete-warning">이 작업은 되돌릴 수 없습니다.</p>
         <div class="modal-actions">
           <button class="cancel-btn" @click="showDeleteModal = false">취소</button>
-          <button class="confirm-delete-btn" @click="deleteSession">삭제</button>
+          <button class="confirm-delete-btn" :disabled="deleting" @click="deleteSession">
+            {{ deleting ? '삭제 중...' : '삭제' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 기간별 내보내기 모달 -->
+    <div v-if="showExportModal" class="modal-overlay" @click.self="showExportModal = false">
+      <div class="modal-content export-modal">
+        <h3>채팅 기록 내보내기</h3>
+        <p class="export-description">선택한 기간의 모든 채팅 기록을 JSON 파일로 내보냅니다.</p>
+
+        <div class="export-form">
+          <div class="export-date-row">
+            <div class="export-date-group">
+              <label>시작일</label>
+              <input type="date" v-model="exportStartDate" />
+            </div>
+            <div class="export-date-group">
+              <label>종료일</label>
+              <input type="date" v-model="exportEndDate" />
+            </div>
+          </div>
+          <p class="export-note">* 최대 90일까지 내보내기 가능합니다.</p>
+        </div>
+
+        <div class="modal-actions">
+          <button class="cancel-btn" @click="showExportModal = false">취소</button>
+          <button
+            class="export-btn"
+            :disabled="!exportStartDate || !exportEndDate || exporting"
+            @click="handleBulkExport"
+          >
+            {{ exporting ? '내보내기 중...' : '내보내기' }}
+          </button>
         </div>
       </div>
     </div>
@@ -141,59 +208,47 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { adminAPI } from '../../services/api'
+import { adminAPI, type ChatHistoryListItem, type ChatHistoryDetailAdmin } from '../../services/api'
 import { marked } from 'marked'
 
-interface ChatSession {
-  id: number
-  user_id: number
-  title: string
-  created_at: string
-}
-
-interface ChatMessage {
-  id: number
-  chat_history_id: number
-  is_user: boolean
-  message: string
-  model_name?: string
-}
-
-interface UserInfo {
-  id: number
-  name: string
-  nickname: string
-}
-
-const sessions = ref<ChatSession[]>([])
-const messages = ref<ChatMessage[]>([])
-const users = ref<Map<number, UserInfo>>(new Map())
-const messageCounts = ref<Map<number, number>>(new Map())
-const selectedSession = ref<ChatSession | null>(null)
+const sessions = ref<ChatHistoryListItem[]>([])
+const selectedSession = ref<ChatHistoryListItem | null>(null)
+const chatDetail = ref<ChatHistoryDetailAdmin | null>(null)
 const loadingSessions = ref(false)
 const loadingMessages = ref(false)
 const searchQuery = ref('')
 const currentPage = ref(1)
 const totalPages = ref(1)
+const total = ref(0)
 const showDeleteModal = ref(false)
+const deleting = ref(false)
+
+// 날짜 필터
+const startDate = ref('')
+const endDate = ref('')
+
+// 내보내기 모달
+const showExportModal = ref(false)
+const exportStartDate = ref('')
+const exportEndDate = ref('')
+const exporting = ref(false)
 
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
 
 const loadSessions = async () => {
   loadingSessions.value = true
   try {
-    // 채팅 세션 목록 가져오기
-    const response = await adminAPI.getTableData('chathistory', {
+    const response = await adminAPI.getChatHistories({
       page: currentPage.value,
       limit: 20,
       search: searchQuery.value || undefined,
+      start_date: startDate.value || undefined,
+      end_date: endDate.value || undefined,
     })
 
-    sessions.value = response.rows as unknown as ChatSession[]
+    sessions.value = response.items
     totalPages.value = response.total_pages
-
-    // 메시지 개수 계산을 위해 전체 메시지 가져오기
-    await loadMessageCounts()
+    total.value = response.total
   } catch (error) {
     console.error('채팅 세션 로드 실패:', error)
   } finally {
@@ -201,79 +256,71 @@ const loadSessions = async () => {
   }
 }
 
-const loadMessageCounts = async () => {
-  try {
-    // 메시지 테이블에서 세션별 개수 계산 (백엔드 limit 최대값: 100)
-    const response = await adminAPI.getTableData('chatmessage', {
-      page: 1,
-      limit: 100,
-    })
+const handleDateFilter = () => {
+  currentPage.value = 1
+  loadSessions()
+}
 
-    const counts = new Map<number, number>()
-    for (const msg of response.rows as unknown as ChatMessage[]) {
-      const count = counts.get(msg.chat_history_id) || 0
-      counts.set(msg.chat_history_id, count + 1)
-    }
-    messageCounts.value = counts
-  } catch (error) {
-    console.error('메시지 개수 로드 실패:', error)
+const clearDateFilter = () => {
+  startDate.value = ''
+  endDate.value = ''
+  currentPage.value = 1
+  loadSessions()
+}
+
+const handleBulkExport = async () => {
+  if (!exportStartDate.value || !exportEndDate.value) return
+
+  exporting.value = true
+  try {
+    const response = await adminAPI.exportChatHistories(exportStartDate.value, exportEndDate.value)
+
+    // JSON 파일 다운로드
+    const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `chat_export_${exportStartDate.value}_${exportEndDate.value}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+
+    showExportModal.value = false
+    alert(`내보내기 완료: ${response.total_sessions}개 세션, ${response.total_messages}개 메시지`)
+  } catch (error: unknown) {
+    console.error('내보내기 실패:', error)
+    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
+    alert(`내보내기 실패: ${errorMessage}`)
+  } finally {
+    exporting.value = false
   }
 }
 
-const loadUsers = async () => {
-  try {
-    const response = await adminAPI.getTableData('member', {
-      page: 1,
-      limit: 100,
-    })
-
-    const userMap = new Map<number, UserInfo>()
-    for (const user of response.rows as unknown as UserInfo[]) {
-      userMap.set(user.id, user)
-    }
-    users.value = userMap
-  } catch (error) {
-    console.error('사용자 목록 로드 실패:', error)
-  }
-}
-
-const selectSession = async (session: ChatSession) => {
+const selectSession = async (session: ChatHistoryListItem) => {
   selectedSession.value = session
   loadingMessages.value = true
+  chatDetail.value = null
 
   try {
-    // 해당 세션의 메시지만 필터링하여 가져오기 (백엔드 limit 최대값: 100)
-    const response = await adminAPI.getTableData('chatmessage', {
-      page: 1,
-      limit: 100,
-      filter_column: 'chat_history_id',
-      filter_value: String(session.id),
-    })
-
-    // ID 순으로 정렬 (오래된 메시지가 먼저)
-    messages.value = (response.rows as unknown as ChatMessage[])
-      .sort((a, b) => a.id - b.id)
+    const detail = await adminAPI.getChatHistoryDetail(session.id)
+    chatDetail.value = detail
   } catch (error) {
-    console.error('메시지 로드 실패:', error)
+    console.error('채팅 상세 로드 실패:', error)
   } finally {
     loadingMessages.value = false
   }
 }
 
-const getUserName = (userId: number): string => {
-  const user = users.value.get(userId)
-  return user?.nickname || user?.name || `사용자 #${userId}`
+const getUserDisplayName = (item: ChatHistoryListItem | ChatHistoryDetailAdmin): string => {
+  if (item.user) {
+    return item.user.nickname || item.user.name || `사용자 #${item.user_id}`
+  }
+  return `사용자 #${item.user_id}`
 }
 
-const getMessageCount = (sessionId: number): number => {
-  return messageCounts.value.get(sessionId) || 0
-}
-
-const formatDate = (dateStr: string): string => {
+const formatDate = (dateStr: string | null): string => {
   if (!dateStr) return '-'
   try {
     const date = new Date(dateStr)
-    // Invalid Date 체크
     if (isNaN(date.getTime())) return '-'
 
     const now = new Date()
@@ -292,11 +339,10 @@ const formatDate = (dateStr: string): string => {
   }
 }
 
-const formatDateFull = (dateStr: string): string => {
+const formatDateFull = (dateStr: string | null): string => {
   if (!dateStr) return '-'
   try {
     const date = new Date(dateStr)
-    // Invalid Date 체크
     if (isNaN(date.getTime())) return '-'
     return date.toLocaleString('ko-KR')
   } catch {
@@ -304,13 +350,29 @@ const formatDateFull = (dateStr: string): string => {
   }
 }
 
-const getModelDisplayName = (modelName: string | null | undefined): string => {
+const formatTime = (dateStr: string | null): string => {
+  if (!dateStr) return ''
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return ''
+    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return ''
+  }
+}
+
+const getModelDisplayName = (modelName: string | null): string => {
   if (!modelName) return ''
 
   const displayNames: Record<string, string> = {
     '통합 모델': '💬 일반',
     '깊은 추론 모델': '🧠 CoT',
-    '대학 정보 검색 모델': '🔍 RAG'
+    '대학 정보 검색 모델': '🔍 RAG',
+    'general': '💬 일반',
+    'cot': '🧠 CoT',
+    'rag': '🔍 RAG',
+    'study': '📚 학습',
+    'career': '💼 진로',
   }
 
   return displayNames[modelName] || modelName
@@ -318,7 +380,6 @@ const getModelDisplayName = (modelName: string | null | undefined): string => {
 
 const formatMessage = (message: string): string => {
   try {
-    // marked를 사용하여 마크다운 변환
     return marked.parse(message) as string
   } catch {
     return message
@@ -339,15 +400,19 @@ const goToPage = (page: number) => {
 }
 
 const exportChat = () => {
-  if (!selectedSession.value || messages.value.length === 0) return
+  if (!chatDetail.value || chatDetail.value.messages.length === 0) return
 
-  let content = `채팅 세션: ${selectedSession.value.title}\n`
-  content += `사용자: ${getUserName(selectedSession.value.user_id)}\n`
-  content += `생성일: ${formatDateFull(selectedSession.value.created_at)}\n`
+  let content = `채팅 세션: ${chatDetail.value.title}\n`
+  content += `사용자: ${getUserDisplayName(chatDetail.value)}`
+  if (chatDetail.value.user?.email) {
+    content += ` (${chatDetail.value.user.email})`
+  }
+  content += `\n`
+  content += `생성일: ${formatDateFull(chatDetail.value.created_at)}\n`
   content += `${'='.repeat(50)}\n\n`
 
-  for (const msg of messages.value) {
-    const sender = msg.is_user ? '[사용자]' : '[AI]'
+  for (const msg of chatDetail.value.messages) {
+    const sender = msg.is_user ? '[사용자]' : `[AI${msg.model_name ? ` - ${msg.model_name}` : ''}]`
     content += `${sender}\n${msg.message}\n\n`
   }
 
@@ -355,7 +420,7 @@ const exportChat = () => {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `chat_${selectedSession.value.id}_${new Date().toISOString().slice(0, 10)}.txt`
+  a.download = `chat_${chatDetail.value.id}_${new Date().toISOString().slice(0, 10)}.txt`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -367,29 +432,26 @@ const confirmDeleteSession = () => {
 const deleteSession = async () => {
   if (!selectedSession.value) return
 
+  deleting.value = true
   try {
-    // 세션의 모든 메시지 삭제
-    for (const msg of messages.value) {
-      await adminAPI.deleteTableRow('chatmessage', msg.id)
-    }
-
-    // 세션 삭제
-    await adminAPI.deleteTableRow('chathistory', selectedSession.value.id)
+    await adminAPI.deleteChatHistory(selectedSession.value.id)
 
     showDeleteModal.value = false
     selectedSession.value = null
-    messages.value = []
+    chatDetail.value = null
 
     // 목록 새로고침
     await loadSessions()
   } catch (error) {
     console.error('세션 삭제 실패:', error)
     alert('세션 삭제에 실패했습니다.')
+  } finally {
+    deleting.value = false
   }
 }
 
 onMounted(async () => {
-  await Promise.all([loadUsers(), loadSessions()])
+  await loadSessions()
 })
 </script>
 
@@ -398,11 +460,37 @@ onMounted(async () => {
   max-width: 1400px;
 }
 
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
 .section-title {
   font-size: 24px;
   font-weight: 700;
   color: #1f2937;
-  margin-bottom: 24px;
+  margin: 0;
+}
+
+.export-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #02478A;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.export-all-btn:hover {
+  background: #023663;
 }
 
 .viewer-layout {
@@ -411,6 +499,59 @@ onMounted(async () => {
   gap: 20px;
   height: calc(100vh - 200px);
   min-height: 500px;
+}
+
+/* 날짜 필터 */
+.date-filter {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.date-input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date-input-group label {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.date-input-group input {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 12px;
+  width: 100%;
+}
+
+.date-input-group input:focus {
+  outline: none;
+  border-color: #02478A;
+}
+
+.clear-filter-btn {
+  display: flex;
+  align-items: flex-end;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-filter-btn:hover {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #ef4444;
 }
 
 /* 세션 패널 */
@@ -572,6 +713,10 @@ onMounted(async () => {
   color: #6b7280;
 }
 
+.user-email {
+  color: #9ca3af;
+}
+
 .chat-actions {
   display: flex;
   gap: 8px;
@@ -659,6 +804,15 @@ onMounted(async () => {
 
 .user-message .sender {
   color: rgba(255, 255, 255, 0.8);
+}
+
+.message-time {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.user-message .message-time {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .message-body {
@@ -857,6 +1011,84 @@ onMounted(async () => {
   color: #fff;
   font-size: 14px;
   cursor: pointer;
+}
+
+.confirm-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 내보내기 모달 */
+.export-modal {
+  max-width: 450px;
+}
+
+.export-description {
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.export-form {
+  margin-bottom: 20px;
+}
+
+.export-date-row {
+  display: flex;
+  gap: 16px;
+}
+
+.export-date-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.export-date-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.export-date-group input {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.export-date-group input:focus {
+  outline: none;
+  border-color: #02478A;
+  box-shadow: 0 0 0 3px rgba(2, 71, 138, 0.1);
+}
+
+.export-note {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 12px;
+}
+
+.export-btn {
+  padding: 10px 20px;
+  background: #02478A;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.export-btn:hover:not(:disabled) {
+  background: #023663;
+}
+
+.export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* 반응형 */

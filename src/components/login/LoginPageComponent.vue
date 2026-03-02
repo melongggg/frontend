@@ -22,8 +22,7 @@
       <div class="login-container">
         <div class="title-section">
           <span class="login-title">
-            내가 찾던 정보, <br/>
-            이제 쉽게 만나요.
+            내가 찾던 정보, 이제 쉽게 만나요.
           </span>
           <!-- 이메일 로그인 폼 완전 제거 (카카오 로그인 전용) -->
         </div>
@@ -71,8 +70,7 @@
         </div>
 
         <div class="divider-section">
-          <!-- 구분선: 이메일 로그인이 있을 때만 표시 -->
-          <div v-if="isDevelopment" class="divider-line"></div>
+          <!-- 구분선 제거 (카카오 로그인만 있으므로 불필요) -->
           <div class="alternative-login">
             <button class="kakao-button" @click="handleKakaoLogin">
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -80,6 +78,11 @@
               </svg>
               <span class="kakao-text">카카오 계정으로 로그인</span>
             </button>
+            <!-- 하단 링크 완전 제거 (카카오 로그인 전용) -->
+          </div>
+          <div class="login-footer-link">
+            <span class="question-text">이미 계정이 있으신가요?</span>
+            <span class="login-link" @click="handleKakaoLogin" style="cursor: pointer;">로그인</span>
           </div>
         </div>
       </div>
@@ -88,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ToastNotification from '../common/ToastNotification.vue'
 import HeaderSection from '../main/HeaderSection.vue'
@@ -98,25 +101,6 @@ import { getApiBaseUrl } from '@/utils/ports-config'
 const router = useRouter()
 
 const API_BASE_URL = getApiBaseUrl()
-
-// 개발 환경 감지 (이메일 로그인은 개발 환경에서만 표시)
-const isDevelopment = computed(() => {
-  const envForceEnable = import.meta.env.VITE_ENABLE_EMAIL_LOGIN === 'true'
-  const isDevMode = import.meta.env.DEV
-  const isLocalhost = window.location.hostname === 'localhost' ||
-                      window.location.hostname === '127.0.0.1'
-  const isDevEnvironment = envForceEnable || isDevMode || isLocalhost
-
-  console.log('[Dev Check]', {
-    envForceEnable,
-    isDevMode,
-    isLocalhost,
-    hostname: window.location.hostname,
-    result: isDevEnvironment
-  })
-
-  return isDevEnvironment
-})
 
 const email = ref('')
 const password = ref('')
@@ -208,7 +192,7 @@ const handleKakaoLogin = () => {
 }
 
 // Mock 로그인: 백엔드 없이 프론트엔드만 개발할 때 사용
-const handleMockLogin = () => {
+const handleMockLogin = async () => {
   console.log('[Mock Login] 개발자 로그인 실행')
 
   // 가짜 토큰 생성
@@ -231,11 +215,9 @@ const handleMockLogin = () => {
   console.log('[Mock Login] 로그인 성공:', mockUser)
   showToastMessage('개발자 모드로 로그인되었습니다.')
 
-  // 채팅 페이지로 이동
-  setTimeout(() => {
-    const redirect = (router.currentRoute.value.query.redirect as string) || '/chat'
-    router.push(redirect)
-  }, 500)
+  // 즉시 채팅 페이지로 이동
+  const redirect = (router.currentRoute.value.query.redirect as string) || '/chat'
+  await router.push(redirect)
 }
 </script>
 
@@ -259,7 +241,7 @@ const handleMockLogin = () => {
   box-sizing: border-box;
   position: absolute;
   left: calc(50% - 138px);
-  top: 810px;
+  top: 710px;
 }
 
 .footer-text {
@@ -295,19 +277,22 @@ const handleMockLogin = () => {
 .main-content {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  min-height: calc(100vh - 84px - 50px);
-  padding: 50px 20px 20px 20px; /* 수동으로 패딩 조정 가능: top right bottom left */
+  align-items: center;
+  flex:1;
+  width:100%;
+  min-height: calc(100vh - 150px);
+  box-sizing: border-box;
+  /* padding: 50px 20px 20px 20px; 수동으로 패딩 조정 가능: top right bottom left */
 }
 
 .login-container {
   display: flex;
   justify-content: flex-start;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 40px;
-  width: 407px;
-  height: 1300px; /* 수동으로 높이 조정 가능 */
+  align-items: center;
+  gap: 30px;
+  width: 408px;
+  height: 200px; /* 수동으로 높이 조정 가능 */
   background-color: var(--color-bg-primary);
   box-sizing: border-box;
   margin: 0 auto; /* 중앙 정렬 추가 */
@@ -330,8 +315,10 @@ const handleMockLogin = () => {
   font-family: Pretendard, sans-serif;
   font-weight: 700;
   line-height: 140%;
-  text-align: left;
+  text-align: center;
   align-self: stretch;
+  align-items: center;
+  margin-bottom: -10px;
 }
 
 .form-container {
@@ -459,7 +446,7 @@ const handleMockLogin = () => {
 
 .divider-section {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   flex-direction: column;
   align-items: flex-start;
   gap: 30px;
@@ -475,10 +462,10 @@ const handleMockLogin = () => {
 
 .alternative-login {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 30px;
+  align-items: center;
+  gap: 3px;
   align-self: stretch;
   box-sizing: border-box;
 }
@@ -489,7 +476,7 @@ const handleMockLogin = () => {
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  border-radius: 12px;
+  border-radius: 40px;
   align-self: stretch;
   height: 46px;
   background-color: rgb(254, 229, 2);
@@ -497,6 +484,7 @@ const handleMockLogin = () => {
   padding: 15px 60px;
   border: none;
   cursor: pointer;
+  margin-bottom: -2px;
 }
 
 .kakao-text {
@@ -539,6 +527,26 @@ const handleMockLogin = () => {
   font-weight: 500;
   line-height: 23px;
   text-align: left;
+}
+.login-footer-link {
+  font-size: 14px;
+  color: #9CA3AF;      /* 질문 문구는 흐린 회색 */
+  display: flex;
+  gap: 8px;            /* "있으신가요?"와 "로그인" 사이 간격 */
+  border-top: 2px solid #E5E7EB; /* 연한 가로선 추가 */
+  padding-top: 10px;             /* 선과 글자 사이 여백 */
+  width: 100%;                   /* 선이 길게 늘어나도록 설정 */
+  justify-content: center;
+}
+
+.login-link {
+  color: #02478A;      /* "로그인" 글자는 이미지처럼 파란색 */
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-link:hover {
+  text-decoration: underline; /* 마우스 올렸을 때 밑줄 효과 */
 }
 
 /* 반응형 디자인 */

@@ -1,7 +1,9 @@
 <template>
   <aside class="admin-sidebar">
     <nav class="sidebar-nav">
+      <!-- 대시보드: dev, admin 모두 접근 가능 -->
       <button
+        v-if="permissions.dashboard"
         class="nav-item"
         :class="{ active: activeMenu === 'dashboard' }"
         @click="$emit('menuChange', 'dashboard')"
@@ -14,7 +16,10 @@
         </svg>
         <span>대시보드</span>
       </button>
+
+      <!-- 회원 관리: admin만 접근 가능 -->
       <button
+        v-if="permissions.user_management"
         class="nav-item"
         :class="{ active: activeMenu === 'users' }"
         @click="$emit('menuChange', 'users')"
@@ -27,7 +32,10 @@
         </svg>
         <span>회원 관리</span>
       </button>
+
+      <!-- DB 브라우저: admin만 접근 가능 -->
       <button
+        v-if="permissions.db_browser"
         class="nav-item"
         :class="{ active: activeMenu === 'database' }"
         @click="$emit('menuChange', 'database')"
@@ -39,28 +47,10 @@
         </svg>
         <span>DB 브라우저</span>
       </button>
+
+      <!-- 콘텐츠 관리: dev, admin 모두 접근 가능 -->
       <button
-        class="nav-item"
-        :class="{ active: activeMenu === 'chatlogs' }"
-        @click="$emit('menuChange', 'chatlogs')"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
-        <span>채팅 로그</span>
-      </button>
-      <button
-        class="nav-item"
-        :class="{ active: activeMenu === 'llm' }"
-        @click="$emit('menuChange', 'llm')"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-        <span>LLM 설정</span>
-      </button>
-      <button
+        v-if="permissions.content_management"
         class="nav-item"
         :class="{ active: activeMenu === 'content' }"
         @click="$emit('menuChange', 'content')"
@@ -74,13 +64,76 @@
         </svg>
         <span>콘텐츠 관리</span>
       </button>
+
+      <!-- 지식 관리: dev, admin 모두 접근 가능 -->
+      <button
+        v-if="permissions.knowledge_management"
+        class="nav-item"
+        :class="{ active: activeMenu === 'knowledge' }"
+        @click="$emit('menuChange', 'knowledge')"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          <line x1="12" y1="6" x2="12" y2="12"></line>
+          <line x1="9" y1="9" x2="15" y2="9"></line>
+        </svg>
+        <span>지식 관리</span>
+      </button>
+
+      <!-- 채팅 기록: admin만 접근 가능 -->
+      <button
+        v-if="permissions.chat_history"
+        class="nav-item"
+        :class="{ active: activeMenu === 'chat-history' }"
+        @click="$emit('menuChange', 'chat-history')"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>채팅 기록</span>
+      </button>
+
+      <!-- 백업: admin만 접근 가능 -->
+      <button
+        v-if="permissions.backup"
+        class="nav-item"
+        :class="{ active: activeMenu === 'backup' }"
+        @click="$emit('menuChange', 'backup')"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>백업</span>
+      </button>
     </nav>
+
+    <!-- 권한 레벨 표시 -->
+    <div class="role-badge" :class="adminRole">
+      <span v-if="adminRole === 'admin'">Admin</span>
+      <span v-else-if="adminRole === 'dev'">Developer</span>
+    </div>
   </aside>
 </template>
 
 <script setup lang="ts">
+interface Permissions {
+  dashboard: boolean
+  content_management: boolean
+  knowledge_management: boolean
+  user_management: boolean
+  db_browser: boolean
+  role_management: boolean
+  chat_history: boolean
+  backup: boolean
+}
+
 defineProps<{
   activeMenu: string
+  adminRole: 'dev' | 'admin' | null
+  permissions: Permissions
 }>()
 
 defineEmits<{
@@ -161,5 +214,43 @@ defineEmits<{
     width: 18px;
     height: 18px;
   }
+
+  .role-badge {
+    display: none;
+  }
+}
+
+/* Role Badge 스타일 */
+.role-badge {
+  position: absolute;
+  bottom: 24px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.role-badge.admin {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.role-badge.dev {
+  background-color: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+/* Sidebar position relative for role badge */
+.admin-sidebar {
+  position: relative;
 }
 </style>

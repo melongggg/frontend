@@ -11,6 +11,10 @@ export default defineConfig(({ mode }) => {
   const backendUrl = env.VITE_FASTAPI_URL || 'http://127.0.0.1:8000'
   const geminiUrl = env.VITE_GEMINI_FASTAPI_URL || 'http://127.0.0.1:8001'
 
+  // 디버그 로그
+  console.log('[Vite Config] Backend URL:', backendUrl)
+  console.log('[Vite Config] Gemini URL:', geminiUrl)
+
   // 프록시 활성화 조건: localhost/127.0.0.1이 포함되거나 /api 같은 상대경로인 경우
   const useProxy = backendUrl.startsWith('/') || backendUrl.includes('localhost') || backendUrl.includes('127.0.0.1')
 
